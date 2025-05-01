@@ -31,21 +31,32 @@ function getCurrentLocation() {
   });
 }
 
-// Function to get current angle of the sun
+//get sunrise and sunset times
+
+function getSunTimes(latitude, longitude) {
+  const date = new Date();
+  //gets times
+  const times = SunCalc.getTimes(date, latitude, longitude);
+
+  console.log("Sunrise:", times.sunrise.toLocaleTimeString());
+  console.log("Sunset:", times.sunset.toLocaleTimeString());
+}
+
+// function to get position of sun
 function getCurrentSunAngle(latitude, longitude) {
-  // Get the current date and time
+  // current date and time
   const date = new Date();
 
-  // Get sun position using SunCalc
+  // current position of sun
   const sunPosition = SunCalc.getPosition(date, latitude, longitude);
-  console.log(sunPosition)
+ 
 
   // Extract altitude (elevation above horizon in radians) and azimuth (direction in radians)
   const altitude = sunPosition.altitude;
   const azimuth = sunPosition.azimuth;
-  const polarAngle = Math.PI/2 - altitude;
+  const polarAngle = Math.PI / 2 - altitude;
   let azimuthalAngle = azimuth + Math.PI; // Add 180° to shift from south to north as 0°
-  
+
   // Normalize to [0, 2π)
   azimuthalAngle = azimuthalAngle % (2 * Math.PI);
   if (azimuthalAngle < 0) {
@@ -104,11 +115,13 @@ export default function Map() {
         map.current.on('load', () => {
           // Get the sun position based on current coordinates
           const sunPosition = getCurrentSunAngle(coords.latitude, coords.longitude);
-          
+          const times = getSunTimes(coords.latitude, coords.longitude)
+          console.log(times)
+
           // Avoid adding the same layer twice
           if (!map.current.getLayer('3d-buildings')) {
             map.current.setLight({
-              'anchor': 'viewport',
+              'anchor': 'map',
               'color': '#ffffff',
               'intensity': 0.5,
               'position': sunPosition, // Dynamic sun position
@@ -198,14 +211,14 @@ export default function Map() {
         map.current.on('load', () => {
           // Use a default position if location access fails
           const defaultSunPosition = [1, 180, 50];
-          
+
           map.current.setLight({
-            'anchor': 'viewport',
+            'anchor': 'map',
             'color': '#ffffff',
             'intensity': 0.5,
             'position': defaultSunPosition,
           });
-          
+
           // Add the same building layers as in the success case
           if (!map.current.getLayer('3d-buildings')) {
             map.current.addLayer({

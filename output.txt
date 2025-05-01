@@ -1,8 +1,3 @@
-Time selectors -> 
-    get angle of the sun SunClac -> 
-            on page laod set directional light source to this angle -> 
-                [radial coordinate, azimuthal angle, polar angle]
-               
 
 ambient lighting -> 
     dark if nightime -> 
