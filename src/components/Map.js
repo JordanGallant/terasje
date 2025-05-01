@@ -54,11 +54,11 @@ export default function Map() {
           style: 'mapbox://styles/mapbox/light-v11', // Changed to light style for better 3D visualization
           center: [coords.longitude, coords.latitude],
           zoom: 15, // Increased zoom level to better see buildings
-          pitch: 45, // Added pitch to see buildings from an angle
+          pitch: 15,  //Added pitch to see buildings from an angle
           bearing: -17.6, // Optional: slight rotation
           antialias: true // For smoother edges on 3D objects
         });
-        
+
         //navigation module 
         map.current.addControl(new mapboxgl.NavigationControl());
 
@@ -68,7 +68,16 @@ export default function Map() {
 
         // Add 3D buildings when map loads
         map.current.on('load', () => {
-          // Add 3D building layer
+
+          //create light
+          map.current.setLight({
+            'anchor': 'viewport',    // Light follows the viewport
+            'color': '#ffffff',      // White light
+            'intensity': 0.5,        // Moderate intensity
+            'position': [1.5, 180, 50], // [radial, azimuthal in degrees, polar in degrees]
+            // This position places the sun to the south (180°) at a 45° elevation
+          });
+          // add 3D building layer
           map.current.addLayer({
             'id': '3d-buildings',
             'source': 'composite',
@@ -103,6 +112,25 @@ export default function Map() {
               'fill-extrusion-opacity': 0.7
             }
           });
+
+          //create shadows
+          map.current.addLayer({
+            'id': 'building-shadows',
+            'source': 'composite',
+            'source-layer': 'building',
+            'filter': ['==', 'extrude', 'true'],
+            'type': 'fill',
+            'minzoom': 13,
+            'layout': {
+              'visibility': 'visible'
+            },
+            paint: {
+              'fill-color': '#000000',
+              'fill-opacity': 0.2,
+              'fill-translate': [10, -10], // offset to simulate shadow direction
+              'fill-translate-anchor': 'viewport'
+            }
+          });
         });
 
         // update movement on map
@@ -129,42 +157,7 @@ export default function Map() {
         map.current.addControl(new mapboxgl.NavigationControl());
 
         // Add 3D buildings when map loads (also in the fallback case)
-        map.current.on('load', () => {
-          map.current.addLayer({
-            'id': '3d-buildings',
-            'source': 'composite',
-            'source-layer': 'building',
-            'filter': ['==', 'extrude', 'true'],
-            'type': 'fill-extrusion',
-            'minzoom': 13,
-            'paint': {
-              'fill-extrusion-color': [
-                'interpolate',
-                ['linear'],
-                ['get', 'height'],
-                0, '#DCE2E9',
-                50, '#CBD2DB',
-                100, '#B9C3CC',
-                200, '#A7B3BE'
-              ],
-              'fill-extrusion-height': [
-                'interpolate',
-                ['linear'],
-                ['zoom'],
-                15, 0,
-                16, ['get', 'height']
-              ],
-              'fill-extrusion-base': [
-                'interpolate',
-                ['linear'],
-                ['zoom'],
-                15, 0,
-                16, ['get', 'min_height']
-              ],
-              'fill-extrusion-opacity': 0.7
-            }
-          });
-        });
+
 
         map.current.on('move', () => {
           setLng(map.current.getCenter().lng.toFixed(4));
