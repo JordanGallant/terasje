@@ -10,7 +10,7 @@ const Map = dynamic(() => import('@/components/Map'), {
 
 export default function Home() {
   return (
-    <main className="flex min-h-screen flex-col items-center p-4">
+    <main className="flex min-h-screen flex-col p-4 w-screen">
       <h2 className="text-2xl font-bold mb-4">My Mapbox Map</h2>
       <div className="w-full max-w-4xl">
         <Map />
