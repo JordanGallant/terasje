@@ -1,10 +1,12 @@
 'use client';
 
+import SunCalc from 'suncalc';
 import { useEffect, useRef, useState } from 'react';
 import mapboxgl from 'mapbox-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
+// import TimeSelector from './TimeSelector';
 
-//function to get current longitude and lattitude
+// Function to get current longitude and latitude
 function getCurrentLocation() {
   return new Promise((resolve, reject) => {
     // Check if geolocation is supported by the browser
@@ -27,6 +29,38 @@ function getCurrentLocation() {
       { enableHighAccuracy: true }
     );
   });
+}
+
+// Function to get current angle of the sun
+function getCurrentSunAngle(latitude, longitude) {
+  // Get the current date and time
+  const date = new Date();
+
+  // Get sun position using SunCalc
+  const sunPosition = SunCalc.getPosition(date, latitude, longitude);
+  console.log(sunPosition)
+
+  // Extract altitude (elevation above horizon in radians) and azimuth (direction in radians)
+  const altitude = sunPosition.altitude;
+  const azimuth = sunPosition.azimuth;
+  const polarAngle = Math.PI/2 - altitude;
+  let azimuthalAngle = azimuth + Math.PI; // Add 180° to shift from south to north as 0°
+  
+  // Normalize to [0, 2π)
+  azimuthalAngle = azimuthalAngle % (2 * Math.PI);
+  if (azimuthalAngle < 0) {
+    azimuthalAngle += 2 * Math.PI;
+  }
+
+  // Using 1 as default for a directional light at unit distance
+  const radialCoordinate = 1.5;
+
+  // Return the array in the specified format: [r, a, p]
+  return [
+    radialCoordinate,  // r: radial coordinate (distance)
+    azimuthalAngle,    // a: azimuthal angle (position around the object, clockwise from north/top)
+    polarAngle         // p: polar angle (height of the light, 0° is directly above)
+  ];
 }
 
 export default function Map() {
@@ -68,71 +102,75 @@ export default function Map() {
 
         // Add 3D buildings when map loads
         map.current.on('load', () => {
+          // Get the sun position based on current coordinates
+          const sunPosition = getCurrentSunAngle(coords.latitude, coords.longitude);
+          
+          // Avoid adding the same layer twice
+          if (!map.current.getLayer('3d-buildings')) {
+            map.current.setLight({
+              'anchor': 'viewport',
+              'color': '#ffffff',
+              'intensity': 0.5,
+              'position': sunPosition, // Dynamic sun position
+            });
 
-          //create light
-          map.current.setLight({
-            'anchor': 'viewport',    // Light follows the viewport
-            'color': '#ffffff',      // White light
-            'intensity': 0.5,        // Moderate intensity
-            'position': [1.5, 180, 50], // [radial, azimuthal in degrees, polar in degrees]
-            // This position places the sun to the south (180°) at a 45° elevation
-          });
-          // add 3D building layer
-          map.current.addLayer({
-            'id': '3d-buildings',
-            'source': 'composite',
-            'source-layer': 'building',
-            'filter': ['==', 'extrude', 'true'],
-            'type': 'fill-extrusion',
-            'minzoom': 13, // Only show 3D buildings when zoomed in
-            'paint': {
-              'fill-extrusion-color': [
-                'interpolate',
-                ['linear'],
-                ['get', 'height'],
-                0, '#DCE2E9',
-                50, '#CBD2DB',
-                100, '#B9C3CC',
-                200, '#A7B3BE'
-              ],
-              'fill-extrusion-height': [
-                'interpolate',
-                ['linear'],
-                ['zoom'],
-                15, 0,
-                16, ['get', 'height']
-              ],
-              'fill-extrusion-base': [
-                'interpolate',
-                ['linear'],
-                ['zoom'],
-                15, 0,
-                16, ['get', 'min_height']
-              ],
-              'fill-extrusion-opacity': 0.7
-            }
-          });
+            map.current.addLayer({
+              'id': '3d-buildings',
+              'source': 'composite',
+              'source-layer': 'building',
+              'filter': ['==', 'extrude', 'true'],
+              'type': 'fill-extrusion',
+              'minzoom': 13,
+              'paint': {
+                'fill-extrusion-color': [
+                  'interpolate',
+                  ['linear'],
+                  ['get', 'height'],
+                  0, '#DCE2E9',
+                  50, '#CBD2DB',
+                  100, '#B9C3CC',
+                  200, '#A7B3BE'
+                ],
+                'fill-extrusion-height': [
+                  'interpolate',
+                  ['linear'],
+                  ['zoom'],
+                  15, 0,
+                  16, ['get', 'height']
+                ],
+                'fill-extrusion-base': [
+                  'interpolate',
+                  ['linear'],
+                  ['zoom'],
+                  15, 0,
+                  16, ['get', 'min_height']
+                ],
+                'fill-extrusion-opacity': 0.7
+              }
+            });
+          }
 
-          //create shadows
-          map.current.addLayer({
-            'id': 'building-shadows',
-            'source': 'composite',
-            'source-layer': 'building',
-            'filter': ['==', 'extrude', 'true'],
-            'type': 'fill',
-            'minzoom': 13,
-            'layout': {
-              'visibility': 'visible'
-            },
-            paint: {
-              'fill-color': '#000000',
-              'fill-opacity': 0.2,
-              'fill-translate': [10, -10], // offset to simulate shadow direction
-              'fill-translate-anchor': 'viewport'
-            }
-          });
+          // Add building shadows only if not already added
+          if (!map.current.getLayer('building-shadows')) {
+            map.current.addLayer({
+              'id': 'building-shadows',
+              'source': 'composite',
+              'source-layer': 'building',
+              'filter': ['==', 'extrude', 'true'],
+              'type': 'fill',
+              'minzoom': 13,
+              'layout': {
+                'visibility': 'visible'
+              },
+              paint: {
+                'fill-color': '#000000',
+                'fill-opacity': 0.2,
+                'fill-translate': [10, -10],
+                'fill-translate-anchor': 'viewport'
+              }
+            });
+          }
         });
-
         // update movement on map
         map.current.on('move', () => {
           setLng(map.current.getCenter().lng.toFixed(4));
@@ -157,7 +195,55 @@ export default function Map() {
         map.current.addControl(new mapboxgl.NavigationControl());
 
         // Add 3D buildings when map loads (also in the fallback case)
-
+        map.current.on('load', () => {
+          // Use a default position if location access fails
+          const defaultSunPosition = [1, 180, 50];
+          
+          map.current.setLight({
+            'anchor': 'viewport',
+            'color': '#ffffff',
+            'intensity': 0.5,
+            'position': defaultSunPosition,
+          });
+          
+          // Add the same building layers as in the success case
+          if (!map.current.getLayer('3d-buildings')) {
+            map.current.addLayer({
+              'id': '3d-buildings',
+              'source': 'composite',
+              'source-layer': 'building',
+              'filter': ['==', 'extrude', 'true'],
+              'type': 'fill-extrusion',
+              'minzoom': 13,
+              'paint': {
+                'fill-extrusion-color': [
+                  'interpolate',
+                  ['linear'],
+                  ['get', 'height'],
+                  0, '#DCE2E9',
+                  50, '#CBD2DB',
+                  100, '#B9C3CC',
+                  200, '#A7B3BE'
+                ],
+                'fill-extrusion-height': [
+                  'interpolate',
+                  ['linear'],
+                  ['zoom'],
+                  15, 0,
+                  16, ['get', 'height']
+                ],
+                'fill-extrusion-base': [
+                  'interpolate',
+                  ['linear'],
+                  ['zoom'],
+                  15, 0,
+                  16, ['get', 'min_height']
+                ],
+                'fill-extrusion-opacity': 0.7
+              }
+            });
+          }
+        });
 
         map.current.on('move', () => {
           setLng(map.current.getCenter().lng.toFixed(4));
@@ -168,12 +254,17 @@ export default function Map() {
   }, []); //empty array so it executes on mount 
 
   return (
-    <div className="w-full h-full">
+    <div className="w-full h-full relative">
       <div
         ref={mapContainer}
         className="w-full h-96 md:h-[600px] md:w-screen"
       />
-      <div className="bg-opacity-80 z-10 rounded m-2 flex justify-center w-screen">
+
+      {/* <div className="absolute top-4 left-4 z-20">
+        <TimeSelector />
+      </div> */}
+
+      <div className="bg-opacity-80 z-10 rounded m-2 flex justify-center w-screen absolute bottom-0 left-0">
         Longitude: {lng} | Latitude: {lat} | Zoom: {zoom}
       </div>
     </div>
