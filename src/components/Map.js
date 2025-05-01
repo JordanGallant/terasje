@@ -37,11 +37,14 @@ export default function Map() {
   }, [lng, lat, zoom]);
 
   return (
-    <div className='w-full h-full'>
-      <div className="bg-opacity-80 z-10 rounded m-2">
-        Longitude: {lng} | Latitude: {lat} | Zoom: {zoom}
-      </div>
-      <div ref={mapContainer} className="w-full h-96" />
-    </div>
+    <div className="w-full h-full">
+  <div
+    ref={mapContainer}
+    className="w-full h-96 md:h-[600px] md:w-screen"
+  />
+  <div className="bg-opacity-80 z-10 rounded m-2 flex justify-center">
+    Longitude: {lng} | Latitude: {lat} | Zoom: {zoom}
+  </div>
+</div>
   );
 }
